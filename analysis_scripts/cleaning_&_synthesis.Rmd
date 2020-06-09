@@ -1,0 +1,208 @@
+
+#################################################################
+##                        Example Code                         ##
+##              Due to synthesis, will not work                ##
+#################################################################
+
+
+Pre-synthesis cleaning script - Raw data was too large to synthesise so
+some initial and reduction cleaning completed before syhthesis
+
+
+#################################################################
+##                          Libraries                          ##
+#################################################################
+
+```{r eval=FALSE, include=FALSE}
+library(synthpop)
+source("analysis_scripts/libraries.R")
+```
+
+#################################################################
+##                     Reading & Cleaning                      ##
+#################################################################
+
+## ---------------------------------------------------------------
+##                         Survey data                          --
+## ---------------------------------------------------------------
+```{r eval=FALSE, include=FALSE}
+survey_raw <- read.xlsx(
+  "raw_data/post_event_survey_data_raw.xlsx", 1
+) %>%
+  clean_names() %>%
+  # Changing blanks in the data to NA
+  mutate_each(
+    funs(
+      replace(., . == "", NA)
+    )
+  )
+```
+
+## ----------------------------------------------------------------
+##                          Membership Data                      --
+## ----------------------------------------------------------------
+
+```{r eval=FALSE, include=FALSE}
+scottish_membership_raw <- read.xlsx(
+  "raw_data/2019_membership_figs.xlsx",
+  2,
+  colIndex = 1:5,
+  startRow = 3
+) %>%
+  clean_names() %>% 
+  drop_na() %>% 
+  mutate(club = as.factor(as.numeric(factor(club)))) %>% 
+  syn()
+
+syn_membership <- scottish_membership_raw$syn
+```
+
+#################################################################
+##                     Cleaning & Synthesising                 ##
+#################################################################
+
+## ---------------------------------------------------------------
+##                           Survey Data                        --
+## ---------------------------------------------------------------
+
+```{r eval=FALSE, include=FALSE}
+survey_clean <- survey_raw %>%
+  # Lower casing place names for cleaning
+  mutate(
+    authority = str_to_lower(which_local_authority_do_you_live_in),
+    stay_accomodation = str_to_lower(in_what_sort_of_accommodation_did_you_stay),
+    transport_to_area = str_to_lower(how_did_you_travel_to_the_area_perth_and_kinross),
+    overnight_stay_location = str_to_lower(where_did_you_stay_overnight_enter_names_of_town_or_village_nearest_if_rural_location_for_all_different_places_stayed),
+    improvement_comments = str_to_lower(any_other_comments_or_recommendations_to_improve_the_next_event),
+    transport_to_event = as.character(str_to_lower(how_did_you_travel_to_the_events_on_the_majority_of_days)),
+    age = as.character(what_age_are_you),
+    age = ifelse(age == "&gt;60", "> 60",
+                 ifelse(age == "&lt;21", "< 21", age))
+  ) %>%
+  #renaming long variable names
+  rename(
+    "country" = "where_do_you_normally_live",
+    "participating_adults" = "participating_adults_16_or_above",
+    "non_participating_adults" = "non_participating_adults_16_or_above",
+    "participating_juniors" = "participating_juniors_under_16",
+    "non_participating_juniors" = "non_participating_juniors_under_16",         
+    "days_used_bus" = "if_you_used_the_event_bus_service_on_how_many_days",
+    "booking_entry" = "how_easy_was_it_to_book_your_entry",
+    "accommodation_price" = "accommodation",
+    "nights_in_perth_kinross" = "how_many_nights_did_you_spend_in_perth_and_kinross",
+    "total_nights_away" = "how_many_nights_did_you_spend_away_from_home_elsewhere_in_scotland",
+    "tourist_attractions_visited" = "which_tourist_attractions_if_any_did_you_visit_during_your_stay_in_scotland",
+    "would_return_to_area" = "following_your_visit_would_you_be_more_or_less_likely_to_return_to_perth_and_kinross_for_future_holidays",
+    "transport_costs" = "fuel_or_other_transport_costs",
+    "event_equiment_costs" = "event_traders_equipment",  
+    "event_food_drink_costs" = "event_traders_food_and_drink",                    
+    "other_food_drink_costs" = "other_food_and_drink",   
+    "event_merch_costs" = "event_event_merchandise",     
+    "souvenir_costs" = "x_non_event_souvenirs",          
+    "additional_spending" = "what_was_the_additional_spend_of_your_group_accommodation_food_and_drink_souvenirs_visitor_attractions_for_the_remainder_of_your_holiday_in_scotland_in_gb_total_per_group",
+    "event_referral" = "how_did_you_find_out_about_this_event",
+    "past_events_attended" = "how_many_events_have_you_previously_attended",
+    "event_organisation_rating" = "overall_how_would_you_rate_the_quality_of_the_2019_event_organisation", 
+    "organisation_comments" = "any_specific_comments_on_the_organisation", 
+    "course_planning_rating" = "overall_how_would_you_rate_the_quality_of_the_2019_course_planning",
+    "planning_comments" = "any_specific_comments_on_the_planning",
+    "social_programme_rating" = "overall_how_would_you_rate_the_quality_of_the_2019_event_social_programme",
+    "programme_comments" = "any_specific_comments_on_the_social_programme",
+    "race_preference" = "this_years_event_included_2_middle_distance_races_in_future_would_you_prefer",
+    "event_comments" = "any_other_comments_on_the_event_format",
+    "race_tracking" = "how_much_did_you_follow_world_ranking_events_and_other_race_tracking",
+    "livestream_awareness" = "were_you_aware_that_a_livestream_production_took_place", 
+    "livestream_rating" = "how_do_you_rate_the_quality_of_the_livestream",
+    "website_provision_rating" = "how_would_you_rate_event_information_provision_via_the_website",
+    "event_info_rating" = "how_would_you_rate_event_information_provision_via_the_printed_programme_and_online_daily_news",
+    "daily_news_info" = "did_you_read_the_online_daily_news_before_each_event",
+    "followed_via_social" = "did_you_follow_the_event_via_facebook_twitter",
+    "social_media_content" = "how_would_you_rate_the_quality_of_the_facebook_twitter_content"
+  ) %>% 
+  # selecting only columns needed
+  select(
+    entry_id,         
+    country,                                                
+    participating_adults,                                                                                      
+    non_participating_adults,                                       
+    participating_juniors,
+    non_participating_juniors,
+    booking_entry,
+    stay_accomodation,
+    event_organisation_rating,
+    organisation_comments,
+    course_planning_rating,
+    planning_comments,
+    social_programme_rating,
+    programme_comments,
+    event_comments, 
+    livestream_awareness,
+    livestream_rating,
+    website_provision_rating,
+    event_info_rating,
+    followed_via_social,
+    social_media_content,
+    improvement_comments,
+    authority,
+    transport_to_area,
+    overnight_stay_location,
+    transport_to_event,
+    age
+  ) %>% 
+  mutate(total_people = 
+           participating_adults + 
+           non_participating_adults +
+           participating_juniors +
+           non_participating_juniors) %>% 
+##----------------------------------------------------------------
+##                         synthesising                         --
+##----------------------------------------------------------------
+# Due to user input Qs did not include the following in sythesis
+# organisation_comments,
+# planning_comments,
+# programme_comments,
+# event_comments, 
+# improvement_comments,
+# authority,
+# overnight_stay_location,
+# Extracting synthetic data
+
+syn(visit.sequence = c(                                                                                                             
+  "country",                                                                                                            
+  "participating_adults",                                                                                      
+  "non_participating_adults",                                       
+  "participating_juniors",
+  "non_participating_juniors",
+  "booking_entry",
+  "stay_accomodation",
+  "event_organisation_rating",
+  "course_planning_rating",
+  "social_programme_rating",
+  "livestream_awareness",
+  "livestream_rating",
+  "website_provision_rating",
+  "event_info_rating",
+  "followed_via_social",
+  "social_media_content",
+  "transport_to_area",
+  "transport_to_event",
+  "age",
+  "total_people"
+))
+# Removed name of the sport, event, and organisation from all strings 
+# Also removed that code as it has the identifiers in
+```
+
+
+```{r eval=FALSE, include=FALSE}
+syn_survey_clean <- survey_clean$syn
+```
+
+#################################################################
+##                        Writing to .csv                      ##
+#################################################################
+```{r eval=FALSE, include=FALSE}
+write_csv(syn_survey_clean, "raw_data/syn_survey.csv")
+write_csv(syn_membership, "raw_data/syn_membership.csv")
+```
+

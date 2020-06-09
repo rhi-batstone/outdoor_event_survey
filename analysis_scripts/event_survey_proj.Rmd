@@ -1,0 +1,850 @@
+---
+title: "Outdoor event survey project"
+author: "Rhi"
+date: "21/05/2020"
+output: html_document
+---
+# This was a real dataset and business brief and therefore the data has been synthesised for publication 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+source("analysis_scripts/libraries.R")
+```
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+survey <- read_csv("clean_data/survey_data.csv")
+```
+
+## Question 1 - Travel
+Mostly people used car to travel to the area of the event. 
+It make sense that the majority of the attendees that travelled from 
+### transport plot
+```{r echo=FALSE, warning=FALSE}
+transport_plot <- survey %>% 
+  ggplot(aes(x = transport_to_area, y = ..prop.., group = 1)) +
+  geom_bar(col = "#95CB0D", fill = "#95CB0D") +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "transparent"), # bg of the panel
+        plot.background = element_rect(fill = "transparent", color = NA), # bg of the plot
+       # legend.background = element_rect(fill = "transparent"), # get rid of legend bg
+        #legend.box.background = element_rect(fill = "transparent"),
+        axis.line = element_line(colour = "black"), 
+        text = element_text(size = 20, color = "black"),# This text size works for savng the image
+        axis.text.y = element_text(colour = "black"),
+        axis.text.x = element_text(angle = 45, hjust = 1, colour = "black")) +
+  labs(
+    x = "Transport Mode",
+    y = "%",
+    title = "Percentage of transport modes used by event attendees"
+    ) +
+  scale_y_continuous(labels = scales::percent) 
+
+transport_plot
+
+#ggsave("transport_plot.png", path = "images/", bg = "transparent", width = 30, height = 20, units = "cm")
+```
+### transport figures
+Of the attendees who filled out the survey
+2811 people attended the event 
+340 did not participate in the event
+```{r echo=FALSE, warning=FALSE}
+#how many people attended
+sum(survey$total_people)
+# how mant people did not participate
+sum(survey$non_participating_adults + survey$non_participating_juniors)
+```
+
+2786 participated the event 
+```{r echo=FALSE, warning=FALSE}
+# how many people actually traveled
+survey %>% 
+  filter(transport_to_area != "no travel") %>% 
+  summarise("total attendees" = sum(total_people))
+```
+
+90% of the attendees travelled by car. 
+However, each person who filled out the survey was able to include their whole group, these groups were up to 34 people. It is clear that they couldnt not all come in the same car and it cannot be assumed every member of the group also traveled by car.
+```{r echo=FALSE, warning=FALSE}
+#how many people traveled by car
+survey %>% 
+  group_by(transport_to_area) %>% 
+  summarise(n = n()) %>% 
+  mutate(prop = (n / sum(n))*100) %>% 
+  filter(transport_to_area == "car") %>% 
+  select(-n)
+  
+```
+### country transport plot
+```{r, echo = FALSE}
+country_transport_plot <- survey %>% 
+  ggplot(aes(x = transport_to_area, y = ..prop.., group = country, fill = country)) +
+  geom_bar(col = "white", position = "dodge") +
+  theme(legend.title = element_blank(),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "transparent"), # bg of the panel
+        plot.background = element_rect(fill = "transparent", color = NA), # bg of the plot
+        legend.background = element_rect(fill = "transparent"), # get rid of legend bg
+        legend.box.background = element_rect(fill = "transparent", colour = NA),
+        text = element_text(size = 20, color = "black"),
+        axis.text.y = element_text(colour = "black"),
+        axis.text.x = element_text(angle = 45, hjust = 1, colour = "black"),
+        axis.line = element_line(colour = "black")) +
+  scale_fill_viridis(discrete = TRUE, option = "viridis") +
+  labs(
+    x = "Transport Mode",
+    y = "%",
+    title = "Percentage of Transport to event area by Country"
+  ) +
+  scale_y_continuous(labels = scales::percent) 
+
+country_transport_plot
+
+ggsave("country_transport_plot.png", path = "images/", bg = "transparent", width = 30, height = 20, units = "cm")
+```
+
+
+### histogram car groups
+Number of people attending the event together that came by car. *This doesn't include number of cars.* 
+We can see that the majority of car attendees travelled in groups of 1, 2 & 3. 
+The organisation would like to reduce the number of single occupancy cars so this can maybe be addressed next year - promoting car sharing.  
+```{r, echo = FALSE}
+group_size_hist <- survey %>% 
+  filter(transport_to_area == "car") %>% 
+  ggplot(aes(x = total_people)) +
+  geom_bar(col = "#E55700", fill = "#E55700") +
+   theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "transparent"), # bg of the panel
+        plot.background = element_rect(fill = "transparent", color = NA), # bg of the plot
+        legend.background = element_rect(fill = "transparent"), # get rid of legend bg
+        legend.box.background = element_rect(fill = "transparent"),
+        axis.line = element_line(colour = "black"),
+        text = element_text(size = 30, color = "black"),
+        axis.text.y = element_text(colour = "black"),
+        axis.text.x = element_text(colour = "black")) +
+  labs(
+    x = "Size of group",
+    y = "Group count"
+    #,
+    #title = "Count of group size for car users"
+  ) +
+  scale_x_continuous(breaks = seq(0, max(survey$total_people), 2))
+
+group_size_hist
+
+ggsave("group_size_hist.png", path = "images/", bg = "transparent", width = 30, height = 20, units = "cm")
+```
+### Histo figures
+
+```{r echo=FALSE, warning=FALSE}
+#grouping car users by size of group and finding proportion of groups size 1 & 2
+survey %>% 
+  filter(transport_to_area == "car") %>% 
+  group_by(total_people) %>% 
+  summarise(n = n()) %>% 
+  mutate(prop = (n / sum(n))*100) %>% 
+  filter(total_people == 1 | total_people == 2) %>% 
+  summarise(sum(prop))
+  
+```
+
+### unused 1
+looking at age split of event attendees
+```{r, echo = FALSE}
+survey %>% 
+  filter(transport_to_area == "car") %>% 
+  ggplot(aes(x =total_people)) +
+  geom_bar(col = "white") +
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(), 
+        axis.line = element_line(colour = "black")) +
+  scale_fill_viridis(discrete = TRUE, option="viridis") +
+  facet_wrap(~age, ncol = 1)
+#TODO add labels
+```
+
+### event transport
+
+```{r, echo = FALSE}
+sum_total_people <- sum(survey$total_people)
+
+event_transport_plot <- survey %>% 
+  group_by(transport_to_event) %>% 
+  summarise(people_pct = sum(total_people)/sum_total_people) %>% 
+  ggplot(aes(x = transport_to_event, y = people_pct)) +
+  geom_col(col = "#95CB0D", fill = "#95CB0D", position = "dodge") +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "transparent"), # bg of the panel
+        plot.background = element_rect(fill = "transparent", color = NA), # bg of the plot
+        axis.line = element_line(colour = "black"), 
+        text = element_text(size = 30, color = "black"),# This text size works for savng the image
+        axis.text.y = element_text(colour = "black"),
+        axis.text.x = element_text(angle = 45, hjust = 1, colour = "black")) +
+  scale_fill_viridis(discrete = TRUE, option="viridis") +
+  scale_y_continuous(labels = scales::percent) +
+  labs(
+    x = "Transport Mode",
+    y = "%"
+  )
+
+event_transport_plot
+
+ggsave("event_transport_plot.png", path = "images/", bg = "transparent", width = 30, height = 20, units = "cm")
+```
+```{r echo=FALSE, warning=FALSE}
+survey %>% 
+  group_by(transport_to_event) %>% 
+  summarise(n = n()) %>% 
+  mutate(prop = (n / sum(n))*100)
+```
+
+### unused 2
+looking at the age split of transport modes to area
+```{r, echo = FALSE}
+#geom label
+survey %>% 
+  ggplot(aes(x = transport_to_area, y = ..prop.., group = age, fill = age)) +
+  geom_bar(col = "white", position = "dodge") +
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(), 
+        axis.line = element_line(colour = "black")) +
+  scale_fill_viridis(discrete = TRUE, option="viridis")
+```
+###unused 3
+looking at the age split of transport modes to daily events
+```{r, echo = FALSE}
+#geom label
+survey %>% 
+  ggplot(aes(x = transport_to_event, y = ..prop.., group = age, fill = age)) +
+  geom_bar(col = "white", position = "dodge") +
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(), 
+        axis.line = element_line(colour = "black")) +
+  scale_fill_viridis(discrete = TRUE, option="viridis")
+```
+
+
+## Question 2 - Where people traveled from
+###unused - leaflet circles plot
+```{r, echo = FALSE}
+#comrie coordinates
+comrie_lat <- 56.377709 
+comrie_lng <- -3.995218
+
+# Creating meteor icon for leaflet plot
+compass_icon <- makeIcon(
+  iconUrl = "../images/compass.svg",
+  iconWidth = 19, iconHeight = 47.5,
+  iconAnchorX = 0, iconAnchorY = 0
+)
+
+survey_unique_auths <- survey %>% 
+  group_by(longitude, latitude) %>% 
+  summarise(count = n(),
+            deci = count/10)
+
+leaflet_authorities_plot <- survey_unique_auths %>%
+  leaflet() %>% 
+  addTiles() %>%
+  addCircles(lng = ~longitude,
+             lat = ~latitude,
+             fillOpacity = ~count/10,
+             stroke = F,
+             radius = 5000,
+             label = 
+             #icon = compass_icon
+             ) %>% 
+  addCircleMarkers(lng = comrie_lng,
+                   lat = comrie_lat,
+                   color = "magenta",
+                   label = "Event Location") %>% 
+  addProviderTiles(
+        providers$CartoDB.Positron
+      )
+
+mapshot(leaflet_authorities_plot, file = "~/git_repos/rhi_final_codeclan_project/images/leaflet_authorities.png")
+
+  
+```
+
+### leaflet authorities map
+```{r echo=FALSE, warning=FALSE}
+# data for scotlanf shapefile
+scotland = st_read("clean_data/Scotland_laulevel1_2011/scotland_laulevel1_2011.shp") %>% 
+  rename("authority" = name) %>% 
+  mutate(authority = str_to_lower(authority),
+         authority = if_else(authority == "aberdeen city", "aberdeen", authority),
+         authority = if_else(authority == "edinburgh, city of", "edinburgh", authority),
+         authority = if_else(authority == "dundee city", "dundee", authority),
+         authority = if_else(authority == "glasgow city", "glasgow", authority),
+         authority = if_else(authority == "orkney islands", "orkney", authority),
+         authority = if_else(authority == "shetland islands", "shetland", authority),
+         authrotiy = ifelse(str_detect(authority, "moray"), "moray", authority)
+         ) 
+```
+
+```{r echo=FALSE, warning=FALSE}
+# wrabgling shapefile
+survey_map_scot <- scotland %>%
+  st_transform("+proj=longlat +datum=WGS84") %>% 
+  left_join(survey, by = "authority") %>% 
+  drop_na(authority) %>% 
+  group_by(authority) %>% 
+  summarise(density = n()) %>% 
+  mutate(authority = str_to_title(authority))
+
+```
+
+
+```{r echo=FALSE, width = 30, height = 40}
+#leaflet plot
+bins <- seq(0, 35, 7)
+pal <- colorBin("YlOrRd", domain = survey_map_scot$density, bins = bins)
+
+labels <- sprintf(
+  "<strong>%s</strong><br/>%g",
+  survey_map_scot$authority, survey_map_scot$density
+) %>% lapply(htmltools::HTML)
+
+comrie_lat <- 56.377709
+comrie_lng <- -3.995218
+
+
+survey_map_scot %>%
+  leaflet() %>%
+  addProviderTiles("MapBox", options = providerTileOptions(
+    id = "mapbox.light",
+    accessToken = Sys.getenv('MAPBOX_ACCESS_TOKEN'))) %>%
+  addPolygons(
+    fillColor = ~pal(density),
+    weight = 2,
+    opacity = 1,
+    color = "white",
+    dashArray = "3",
+    fillOpacity = 0.7,
+    highlight = highlightOptions(
+      weight = 5,
+      color = "#666",
+      dashArray = "",
+      fillOpacity = 0.7,
+      bringToFront = TRUE),
+    label = labels,
+    labelOptions = labelOptions(
+      style = list("font-weight" = "normal",
+                   padding = "3px 8px"),
+      textsize = "15px",
+      direction = "auto")) %>%
+   addCircleMarkers(lng = comrie_lng,
+                   lat = comrie_lat,
+                   color = "magenta",
+                   label = "Event Location") %>%
+  addLegend(pal = pal, values = ~density, opacity = 0.7, title = "# Attendees",
+    position = "topleft")
+
+```
+
+### % other country
+```{r echo=FALSE, warning=FALSE}
+survey %>% 
+  group_by(country) %>% 
+  summarise(n = n()) %>% 
+  mutate(prop = (n / sum(n))*100)
+```
+
+
+
+### % accomodation 
+```{r echo=FALSE, warning=FALSE}
+survey %>% 
+  group_by(stay_accomodation) %>% 
+  summarise(n = n()) %>% 
+  mutate(prop = (n / sum(n))*100) %>% 
+  arrange(desc(prop))
+```
+
+## Question 3 - Social media
+### bar chart of ratings
+
+need to tinker with this for proportion not count 
+```{r echo=FALSE, warning=FALSE}
+pal1 <- c("#95CB0D", "#E55700")
+
+social_media_rating <- survey %>% 
+  pivot_longer(c(
+    "social_media_content", 
+    "livestream_rating"), 
+    names_to = "content_type", 
+    values_to = "rating", 
+    values_drop_na = T
+    ) %>% 
+  mutate(rating = factor(rating, levels = c("Very poor", "Poor", "Average", "Good", "Excellent"))) %>% 
+  ggplot(aes(x = rating, y = ..prop.., group = content_type, fill = content_type
+             )
+         ) +
+  geom_bar(position = "dodge") +
+  theme(legend.title = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "transparent"), # bg of the panel
+        plot.background = element_rect(fill = "transparent", color = NA), # bg of the plot
+        legend.background = element_rect(fill = "transparent", colour = NA), # get rid of legend bg
+        legend.box.background = element_rect(fill = "transparent", colour = NA),
+        text = element_text(size = 25, color = "black"),
+        axis.text.y = element_text(hjust = 0, colour = "black"),
+        axis.text.x = element_text(colour = "black"),
+        axis.line = element_line(colour = "black")) +
+  scale_fill_manual(values = pal1) +
+  scale_y_continuous(labels = scales::percent, expand = c(0, 0)) +
+  labs(
+    x = "Rating",
+    y = "Count"
+    )
+  
+social_media_rating
+
+ggsave("social_media_rating.png", path = "images/", bg = "transparent", width = 30, height = 20, units = "cm")
+```
+
+```{r echo=FALSE, warning=FALSE}
+followed_social <- survey %>% 
+  group_by(followed_via_social) %>% 
+  summarise(n = n()) %>% 
+  mutate(prop = (n / sum(n))*100) %>% 
+  arrange(desc(prop)) %>% 
+  ggplot(
+    aes(x = followed_via_social, y = prop)
+  ) +
+  geom_col(fill = "#E55700") +
+  ylim(0, 100) +
+  labs(
+    y = "%",
+    x = "Followed on social media"
+  ) +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "transparent"), # bg of the panel
+        plot.background = element_rect(fill = "transparent", color = NA), # bg of the plot
+        legend.background = element_rect(fill = "transparent"), # get rid of legend bg
+        legend.box.background = element_rect(fill = "transparent"),
+        text = element_text(size = 25, color = "black"),
+        axis.text.y = element_text(colour = "black"),
+        axis.text.x = element_text(colour = "black"),
+        axis.line = element_line(colour = "black")) 
+
+followed_social
+
+ggsave("followed_social.png", path = "images/", bg = "transparent", width = 30, height = 20, units = "cm")
+```
+
+```{r echo=FALSE, warning=FALSE}
+followed_livestream <- survey %>% 
+  group_by(livestream_awareness) %>% 
+  summarise(n = n()) %>% 
+  mutate(prop = (n / sum(n))*100) %>% 
+  arrange(desc(prop)) %>% 
+  ggplot(
+    aes(x = livestream_awareness, y = prop)
+  ) +
+  geom_col(fill = "#95CB0D") +
+  ylim(0, 100) +
+  labs(
+    y = "%",
+    x = "Aware of the livestream"
+  ) +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "transparent"), # bg of the panel
+        plot.background = element_rect(fill = "transparent", color = NA), # bg of the plot
+        text = element_text(size = 25, color = "black"),
+        axis.text.y = element_text(colour = "black"),
+        axis.text.x = element_text(colour = "black"),
+        axis.line = element_line(colour = "black"))
+
+followed_livestream
+
+ggsave("followed_livestream.png", path = "images/", bg = "transparent", width = 30, height = 20, units = "cm")
+```
+### social media text analysis
+```{r echo=FALSE, warning=FALSE}
+comments_about_social <- survey %>% 
+  filter(str_detect(organisation_comments, "twitter|facebook|social media|online")) %>% 
+  select(organisation_comments)
+
+comments_about_social$organisation_comments
+```
+
+
+
+## Question 4 - feedback
+ 
+ 
+### Top words in comments about event improvements
+```{r echo=FALSE, warning=FALSE}
+
+words_df <- 
+survey %>%
+  drop_na(improvement_comments) %>% 
+  select(entry_id, improvement_comments) %>% 
+  unnest_tokens(word, improvement_comments) %>%
+  group_by(word) %>%
+  summarise(
+    count = n()
+  ) %>% 
+  arrange(desc(count)) %>% 
+  anti_join(stop_words)
+
+words_df
+
+```
+#### Comments that mention "event"
+1st ten: 
+```{r echo=FALSE, warning=FALSE}
+#event is a common word and seems interesting
+comments_with_event <- survey %>% 
+  filter(str_detect(improvement_comments, "event")) %>% 
+  select(improvement_comments)
+comments_with_event
+```
+
+```{r warning=FALSE, include=FALSE}
+comments_with_event %>% 
+  unnest_tokens(word, improvement_comments) %>%
+  anti_join(stop_words) %>% 
+  inner_join(get_sentiments("bing")) %>% 
+  group_by(sentiment) %>% 
+  summarise(count = n()) %>% 
+  mutate("%" = count/sum(count)*100)
+```
+
+```{r echo=FALSE, warning=FALSE}
+#calculating percentage separately as the count of each word may be from appearing more than once in a comment
+event_count <- count(comments_with_event)
+
+event_count/(survey %>% 
+  drop_na(improvement_comments) %>% 
+  count())*100
+```
+#### wifi
+##### comments
+```{r echo=FALSE, warning=FALSE}
+#wifi is a common word and seems interesting
+comments_with_wifi <- survey %>% 
+  filter(str_detect(improvement_comments, "wi-fi|wifi|internet")) %>% 
+  select(improvement_comments)
+comments_with_wifi
+# Clearly poor wifi is commomn problem
+```
+##### % sentiment 
+```{r echo=FALSE, warning=FALSE}
+comments_with_wifi %>% 
+  unnest_tokens(word, improvement_comments) %>%
+  anti_join(stop_words) %>% 
+  inner_join(get_sentiments("bing")) %>% 
+  group_by(sentiment) %>% 
+  summarise(count = n()) %>% 
+  mutate("%" = count/sum(count)*100)
+```
+##### % of comments
+```{r echo=FALSE, warning=FALSE}
+#calculating percentage separately as the count of each word may be from appearing more than once in a comment
+wifi_count <- count(comments_with_wifi)
+
+wifi_count/(survey %>% 
+  drop_na(improvement_comments) %>% 
+  count())*100
+
+```
+#### news
+##### comments
+```{r echo=FALSE, warning=FALSE}
+#news is a common word and seems interesting
+# removed comments referencing wifi as they are genrally talking about not being able to access news because of wifi
+comments_with_news <- survey %>% 
+  mutate(str_to_lower(improvement_comments)) %>% 
+  filter(str_detect(improvement_comments, "news")) %>% 
+  filter(!str_detect(improvement_comments, "wi-fi|wifi|internet|results")) %>% 
+  select(improvement_comments)
+comments_with_news
+```
+##### % sentiments
+```{r echo=FALSE, warning=FALSE}
+comments_with_news %>% 
+  unnest_tokens(word, improvement_comments) %>%
+  anti_join(stop_words) %>% 
+  inner_join(get_sentiments("bing")) %>% 
+  group_by(sentiment) %>% 
+  summarise(count = n()) %>% 
+  mutate("%" = count/sum(count)*100)
+```
+
+##### % of comments
+```{r echo=FALSE, warning=FALSE}
+# Clearly poor wifi is commomn problem 
+news_count <- count(comments_with_news)
+
+news_count/(survey %>% 
+  drop_na(improvement_comments) %>% 
+  count())*100
+```
+####results
+##### comments
+```{r echo=FALSE, warning=FALSE}
+#results is a common word and seems interesting
+comments_with_results <- survey %>% 
+  filter(str_detect(improvement_comments, "results")) %>% 
+  select(improvement_comments)
+comments_with_results
+```
+##### % sentiments
+```{r echo=FALSE, warning=FALSE}
+comments_with_results %>% 
+  unnest_tokens(word, improvement_comments) %>%
+  anti_join(stop_words) %>% 
+  inner_join(get_sentiments("bing")) %>% 
+  group_by(sentiment) %>% 
+  summarise(count = n()) %>% 
+  mutate("%" = count/sum(count)*100)
+```
+
+##### % comments
+```{r echo=FALSE, warning=FALSE}
+# Clearly poor wifi is commomn problem 
+results_count <- count(comments_with_results)
+
+results_count/(survey %>% 
+  drop_na(improvement_comments) %>% 
+  count())*100
+```
+#### arena
+##### comments
+```{r echo=FALSE, warning=FALSE}
+# arena is a common word and seems interesting
+comments_with_arena <- survey %>% 
+  filter(str_detect(improvement_comments, "arena")) %>% 
+  filter(!str_detect(improvement_comments, "wi-fi|wifi|internet")) %>% 
+  select(improvement_comments)
+comments_with_arena
+```
+##### % sentiments
+```{r echo=FALSE, warning=FALSE}
+arena_sentiments <- comments_with_arena %>% 
+  unnest_tokens(word, improvement_comments) %>%
+  anti_join(stop_words) %>% 
+  inner_join(get_sentiments("bing"))
+```
+
+
+```{r echo=FALSE, warning=FALSE}
+arena_sentiments %>% 
+  group_by(sentiment) %>% 
+  summarise(count = n()) %>% 
+  mutate("%" = count/sum(count)*100)
+```
+##### word cloud
+```{r echo=FALSE, warning=FALSE}
+arena_sentiments %>% 
+  count(word, sort = T) %>% 
+  inner_join(get_sentiments("bing")) %>% 
+  acast(word ~ sentiment, value.var = "n", fill = 0) %>% 
+  comparison.cloud(colors = c("red", "green"), max.words = 100)
+```
+
+##### % of comments
+
+```{r echo=FALSE, warning=FALSE}
+# Clearly poor wifi is commomn problem 
+arena_count <- count(comments_with_arena)
+
+arena_count/(survey %>% 
+  drop_na(improvement_comments) %>% 
+  count())*100
+```
+#### information
+##### comments
+```{r echo=FALSE, warning=FALSE}
+# information is a common word and seems interesting
+comments_with_information <- survey %>% 
+  filter(str_detect(improvement_comments, "information")) %>% 
+  #filter(!str_detect(improvement_comments, "wi-fi|wifi|internet")) %>% 
+  select(improvement_comments)
+
+comments_with_information
+```
+##### % of sentiments
+```{r echo=FALSE, warning=FALSE}
+information_sentiments <- comments_with_information %>% 
+  unnest_tokens(word, improvement_comments) %>%
+  anti_join(stop_words) %>% 
+  inner_join(get_sentiments("bing"))
+```
+
+
+```{r echo=FALSE, warning=FALSE}
+information_sentiments %>% 
+  group_by(sentiment) %>% 
+  summarise(count = n()) %>% 
+  mutate("%" = count/sum(count)*100)
+```
+##### word cloud
+```{r echo=FALSE, warning=FALSE}
+info_wordcloud <- information_sentiments %>% 
+  count(word, sort = T) %>% 
+  inner_join(get_sentiments("bing")) %>% 
+  acast(word ~ sentiment, value.var = "n", fill = 0) %>% 
+  comparison.cloud(colors = c("red", "green"), max.words = 50)
+
+# ggsave("info_wordcloud.png", path = "images/", width = 30, height = 20, units = "cm")
+```
+
+
+##### % of comments
+
+```{r echo=FALSE, warning=FALSE}
+information_count <- count(comments_with_information)
+
+information_count/(survey %>% 
+  drop_na(improvement_comments) %>% 
+  count())*100
+```
+
+###
+
+
+
+## Question 5 - Demographics
+```{r echo=FALSE, warning=FALSE}
+#read in the membership files
+scot_members <- read_csv("clean_data/scottish_memberships.csv")
+```
+
+### age split hist
+```{r echo=FALSE, warning=FALSE}
+scot_members <- scot_members %>% 
+  mutate(age = year(now())-scot_members$birth_year)
+
+
+scot_member_age_plot <- scot_members %>% 
+  ggplot(aes(x = age)) +
+  geom_histogram(col = "white", fill = "#E55700") +
+  facet_wrap(~type) +
+  labs(
+    legend = "Group",
+    x = "Age",
+    y = "Count"
+  ) +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "transparent"), # bg of the panel
+        plot.background = element_rect(fill = "transparent", color = NA), # bg of the plot
+        legend.background = element_rect(fill = "transparent"), # get rid of legend bg
+        legend.box.background = element_rect(fill = "transparent"),
+        text = element_text(size = 25, color = "black"),
+        axis.text.y = element_text(colour = "black"),
+        axis.text.x = element_text(colour = "black"),
+        axis.line = element_line(colour = "black")) 
+
+scot_member_age_plot
+
+ggsave("scot_member_age_plot.png", path = "images/", bg = "transparent", width = 30, height = 20, units = "cm")
+```
+```{r echo=FALSE, warning=FALSE}
+scot_members %>% 
+  group_by(type, age) %>% 
+  summarise(n())
+```
+
+
+### clubs leaflet
+```{r echo=FALSE, warning=FALSE}
+club_size <- scot_members %>% 
+  group_by(club) %>% 
+  mutate(count = n()) %>% 
+  distinct(club, .keep_all=TRUE) %>% 
+  leaflet() %>% 
+  addProviderTiles(
+        providers$CartoDB.Positron
+      ) %>%
+  addCircles(lat = ~latitude,
+             lng = ~longitude,
+             radius = ~count*100,
+             opacity = 0.5,
+             color = "#FF6000",
+             label = ~club
+            )
+
+club_size
+
+mapshot(club_size, file = "~/git_repos/rhi_final_codeclan_project/images/club_size_leaflet.png")
+```
+
+###gender split
+
+#### current - vertical
+```{r echo=FALSE, warning=FALSE}
+
+pal <- c("#FFD95E", "#6BDBCE")
+scot_members_gender_plot <- scot_members %>% 
+  group_by(club, gender) %>% 
+  mutate(count = n()) %>% 
+  distinct(club, .keep_all=TRUE) %>% 
+  ggplot(aes(x = reorder(club, -count), y = count, fill = gender, width=.65)) + 
+  geom_col(position = "dodge") + 
+  labs(
+    x = "Club",
+    y = "Count"
+  ) +
+  theme(legend.title = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "transparent"), # bg of the panel
+        plot.background = element_rect(fill = "transparent", color = NA), # bg of the plot
+        legend.background = element_rect(fill = "transparent", colour = NA), # get rid of legend bg
+        legend.box.background = element_rect(fill = "transparent", colour = NA),
+        text = element_text(size = 15, color = "black"),
+        axis.text.y = element_text(colour = "black"),
+        axis.text.x = element_text(angle = 0, hjust = .5, colour = "black"),
+        axis.line = element_line(colour = "black")) +
+  scale_y_continuous(expand = c(0, 0)) +
+  #coord_flip() +
+  scale_fill_manual(values = pal)
+
+scot_members_gender_plot
+
+ggsave("scot_members_gender_plot.png", path = "images/", bg = "transparent", width = 40, height = 20, units = "cm")
+
+  
+```
+
+
+
+### New Vs Old members
+```{r echo=FALSE, warning=FALSE}
+
+new_members <- scot_members %>% 
+  group_by(club, renewal_status) %>% 
+  mutate(count = n()) %>% 
+  distinct(club, .keep_all=TRUE) %>% 
+  filter(renewal_status == "New") %>% 
+  leaflet() %>% 
+  addProviderTiles(
+        providers$CartoDB.Positron
+      ) %>%
+  addCircles(lat = ~latitude,
+             lng = ~longitude,
+             radius = ~count*200,
+             opacity = 0.5,
+             color = "#00C709",
+             label = ~club
+            )
+new_members
+
+mapshot(new_members, file = "~/git_repos/rhi_final_codeclan_project/images/new_members_leaflet.png")
+
+```
